@@ -1,0 +1,37 @@
+{
+  "name": "tma-template",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@8.15.0",
+  "scripts": {
+    "dev": "pnpm --parallel dev",
+    "dev:admin": "pnpm --filter client-admin dev",
+    "dev:user": "pnpm --filter client-user dev",
+    "dev:server": "pnpm --filter server dev",
+    "build": "pnpm --recursive build",
+    "build:admin": "pnpm --filter client-admin build",
+    "build:user": "pnpm --filter client-user build",
+    "build:server": "pnpm --filter server build",
+    "start": "pnpm --parallel start",
+    "start:admin": "pnpm --filter client-admin start",
+    "start:user": "pnpm --filter client-user start",
+    "start:server": "pnpm --filter server start",
+    "lint": "pnpm --recursive lint",
+    "lint:admin": "pnpm --filter client-admin lint",
+    "lint:user": "pnpm --filter client-user lint",
+    "lint:server": "pnpm --filter server lint",
+    "install:all": "pnpm install",
+    "clean": "pnpm --recursive exec rm -rf node_modules && rm -rf node_modules",
+    "clean:lock": "rm -f pnpm-lock.yaml && pnpm install",
+    "db:generate": "pnpm --filter server db:generate",
+    "db:migrate": "pnpm --filter server db:migrate"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.1",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+} 
