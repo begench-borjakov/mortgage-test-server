@@ -10,6 +10,7 @@ import { AccountModule } from './modules/account/account.module';
 import { AccountTokenModule } from './modules/account-token/account-token.module';
 import { RefreshTokenModule } from './modules/refresh-token/refresh-token.module';
 import { DatabaseModule } from '../database/database.module';
+import { MortgageModule } from './modules/mortgage/mortgage.module';
 
 @Module({
   imports: [
@@ -32,7 +33,8 @@ import { DatabaseModule } from '../database/database.module';
     AccountTokenModule,
     RefreshTokenModule,
     AuthModule,
-    UsersModule
+    UsersModule,
+    MortgageModule
   ],
   controllers: [],
   providers: [Logger]

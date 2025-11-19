@@ -10,7 +10,7 @@ import { InferInsertModel, InferSelectModel } from 'drizzle-orm';
 
 export const mortgageProfiles = mysqlTable('MortgageProfiles', {
   id: int('id').autoincrement().primaryKey(),
-  userId: varchar('userId', { length: 36 }).notNull(),
+  userId: varchar('userId', { length: 255 }).notNull(),
 
   propertyPrice: double('propertyPrice').notNull(),
   propertyType: varchar('propertyType', { length: 255 }).notNull(),

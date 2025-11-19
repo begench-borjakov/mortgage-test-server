@@ -8,29 +8,29 @@ import { databaseSchema } from './schema';
 
 @Global()
 @Module({
-    imports: [ConfigModule],
-    providers: [
-        {
-            provide: 'DATABASE',
-            useFactory: async (configService: ConfigService): Promise<Database> => {
-                const connection = mysql.createPool({
-                    host: configService.get('HOST'),
-                    port: parseInt(configService.get('PORT') || '3306'),
-                    user: configService.get('USERNAME'),
-                    password: configService.get('PASSWORD') || undefined,
-                    database: configService.get('DATABASE'),
-                    timezone: DATABASE_CONSTANTS.DEFAULT_TIMEZONE,
-                    dateStrings: true,
-                });
+  imports: [ConfigModule],
+  providers: [
+    {
+      provide: 'DATABASE',
+      useFactory: async (configService: ConfigService): Promise<Database> => {
+        const connection = mysql.createPool({
+          host: configService.get<string>('DB_HOST') ?? '127.0.0.1',
+          port: parseInt(configService.get<string>('DB_PORT') ?? '3306', 10),
+          user: configService.get<string>('DB_USER') ?? 'root',
+          password: configService.get<string>('DB_PASSWORD') || undefined,
+          database: configService.get<string>('DB_NAME'),
+          timezone: DATABASE_CONSTANTS.DEFAULT_TIMEZONE,
+          dateStrings: true
+        });
 
-                return drizzle(connection, {
-                    schema: databaseSchema,
-                    mode: 'default'
-                }) as Database;
-            },
-            inject: [ConfigService],
-        },
-    ],
-    exports: ['DATABASE'],
+        return drizzle(connection, {
+          schema: databaseSchema,
+          mode: 'default'
+        }) as Database;
+      },
+      inject: [ConfigService]
+    }
+  ],
+  exports: ['DATABASE']
 })
-export class DatabaseModule { } 
+export class DatabaseModule {}
