@@ -1,4 +1,9 @@
-import { mysqlTable, varchar, boolean, timestamp } from 'drizzle-orm/mysql-core';
+import {
+  mysqlTable,
+  varchar,
+  boolean,
+  timestamp
+} from 'drizzle-orm/mysql-core';
 import { InferInsertModel, InferSelectModel } from 'drizzle-orm';
 
 export const users = mysqlTable('Users', {
@@ -10,8 +15,8 @@ export const users = mysqlTable('Users', {
   invitedBy: varchar('invitedBy', { length: 255 }),
   isActive: boolean('isActive').default(true).notNull(),
   createdAt: timestamp('createdAt').defaultNow().notNull(),
-  updatedAt: timestamp('updatedAt').defaultNow().onUpdateNow().notNull(),
-}); 
+  updatedAt: timestamp('updatedAt').defaultNow().onUpdateNow().notNull()
+});
 
 export type User = InferSelectModel<typeof users>;
 export type NewUser = InferInsertModel<typeof users>;

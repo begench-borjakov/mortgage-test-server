@@ -1,10 +1,10 @@
 import { defineConfig } from 'drizzle-kit';
 import * as dotenv from 'dotenv';
 
-dotenv.config();
+dotenv.config({ override: true });
 
 export default defineConfig({
-  schema: './src/database/schema/*',
+  schema: './src/app/modules/**/schemas/*.ts',
   out: './database/migrations',
   dialect: 'mysql',
   dbCredentials: {
@@ -12,8 +12,8 @@ export default defineConfig({
     port: parseInt(process.env.PORT || '3306'),
     user: process.env.USERNAME,
     password: process.env.PASSWORD || undefined,
-    database: process.env.DATABASE || 'DatabaseName',
+    database: process.env.DATABASE || 'DatabaseName'
   },
   verbose: true,
-  strict: true,
-}); 
+  strict: true
+});
