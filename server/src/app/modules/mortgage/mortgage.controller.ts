@@ -9,14 +9,13 @@ import { RequestWithUser } from '../auth/interfaces/request-with-user.interface'
 export class MortgageProfilesController {
   constructor(private readonly mortgageService: MortgageService) {}
 
-  //@JwtAuth()
+  @JwtAuth()
   @Post()
   async createMortgageProfile(
-    // @Req() req: RequestWithUser,
+    @Req() req: RequestWithUser,
     @Body() dto: CreateMortgageProfileDto
   ): Promise<MortgageCalculationRto> {
-    // const userId = req.user.tgId;
-    const userId = 'test-user';
+    const userId = req.user.tgId;
 
     return this.mortgageService.createMortgageCalculation(userId, dto);
   }
