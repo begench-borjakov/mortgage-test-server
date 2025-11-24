@@ -24,8 +24,9 @@ export class MortgageCalculationService {
 
     const round2 = (value: number) => Math.round(value * 100) / 100;
 
-    const usedMatCapital =
-      matCapitalIncluded && matCapitalAmount ? matCapitalAmount : 0;
+    const matAmount = matCapitalAmount ?? 0;
+
+    const usedMatCapital = matCapitalIncluded ? matAmount : 0;
 
     let loanAmount = propertyPrice - downPaymentAmount - usedMatCapital;
     if (loanAmount < 0) loanAmount = 0;
