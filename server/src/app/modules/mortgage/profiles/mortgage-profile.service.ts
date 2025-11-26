@@ -12,25 +12,15 @@ export class MortgageProfileService {
     dto: CreateMortgageProfileDto,
     userId: string
   ): NewMortgageProfile {
-    const {
-      propertyPrice,
-      propertyType,
-      downPaymentAmount,
-      matCapitalAmount,
-      matCapitalIncluded,
-      loanTermYears,
-      interestRate
-    } = dto;
-
     return {
       userId,
-      propertyPrice,
-      propertyType,
-      downPaymentAmount,
-      matCapitalAmount: matCapitalAmount ?? null,
-      matCapitalIncluded,
-      loanTermYears,
-      interestRate
+      propertyPrice: dto.propertyPrice,
+      propertyType: dto.propertyType,
+      downPaymentAmount: dto.downPaymentAmount,
+      matCapitalAmount: dto.matCapitalAmount ?? null,
+      matCapitalIncluded: dto.matCapitalIncluded,
+      loanTermYears: dto.loanTermYears,
+      interestRate: dto.interestRate
     };
   }
 

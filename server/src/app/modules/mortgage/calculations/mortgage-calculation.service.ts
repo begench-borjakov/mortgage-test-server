@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Database } from '../../../../database/schema';
-import { CreateMortgageProfileDto } from '../dto/create-mortgage.dto';
+import { MortgageCalculationDto } from '../dto/mortgage-calculation.dto';
 import {
   MortgageCalculationRto,
   MortgagePaymentSchedule
@@ -12,27 +12,18 @@ import {
 
 @Injectable()
 export class MortgageCalculationService {
-  calculateMortgage(dto: CreateMortgageProfileDto): MortgageCalculationRto {
-    const {
-      propertyPrice,
-      downPaymentAmount,
-      matCapitalAmount,
-      matCapitalIncluded,
-      loanTermYears,
-      interestRate
-    } = dto;
-
+  calculateMortgage(dto: MortgageCalculationDto): MortgageCalculationRto {
     const round2 = (value: number) => Math.round(value * 100) / 100;
 
-    const matAmount = matCapitalAmount ?? 0;
+    const matAmount = dto.matCapitalAmount ?? 0;
 
-    const usedMatCapital = matCapitalIncluded ? matAmount : 0;
+    const usedMatCapital = dto.matCapitalIncluded ? matAmount : 0;
 
-    let loanAmount = propertyPrice - downPaymentAmount - usedMatCapital;
+    let loanAmount = dto.propertyPrice - dto.downPaymentAmount - usedMatCapital;
     if (loanAmount < 0) loanAmount = 0;
 
-    const monthsCount = loanTermYears * 12;
-    const monthlyRate = interestRate / 12 / 100;
+    const monthsCount = dto.loanTermYears * 12;
+    const monthlyRate = dto.interestRate / 12 / 100;
 
     let monthlyPayment = 0;
 
@@ -92,7 +83,7 @@ export class MortgageCalculationService {
     const totalPayment = round2(totalPaid);
     const totalOverpaymentAmount = round2(totalInterest);
 
-    const propertyDeductionBase = Math.min(propertyPrice, 2_000_000);
+    const propertyDeductionBase = Math.min(dto.propertyPrice, 2_000_000);
     const propertyDeduction = round2(propertyDeductionBase * 0.13);
 
     const interestDeductionBase = Math.min(totalOverpaymentAmount, 3_000_000);
@@ -121,26 +112,16 @@ export class MortgageCalculationService {
     mortgageProfileId: number,
     result: MortgageCalculationRto
   ): NewMortgageCalculation {
-    const {
-      monthlyPayment,
-      totalPayment,
-      totalOverpaymentAmount,
-      possibleTaxDeduction,
-      savingsDueMotherCapital,
-      recommendedIncome,
-      mortgagePaymentSchedule
-    } = result;
-
     return {
       userId,
       mortgageProfileId,
-      monthlyPayment,
-      totalPayment,
-      totalOverpaymentAmount,
-      possibleTaxDeduction,
-      savingsDueMotherCapital,
-      recommendedIncome,
-      paymentSchedule: JSON.stringify(mortgagePaymentSchedule)
+      monthlyPayment: result.monthlyPayment,
+      totalPayment: result.totalPayment,
+      totalOverpaymentAmount: result.totalOverpaymentAmount,
+      possibleTaxDeduction: result.possibleTaxDeduction,
+      savingsDueMotherCapital: result.savingsDueMotherCapital,
+      recommendedIncome: result.recommendedIncome,
+      paymentSchedule: JSON.stringify(result.mortgagePaymentSchedule)
     };
   }
 

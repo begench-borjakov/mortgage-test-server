@@ -1,4 +1,5 @@
-import { IsBoolean, IsEnum, IsNumber, IsOptional, Min } from 'class-validator';
+import { IsEnum } from 'class-validator';
+import { MortgageCalculationDto } from './mortgage-calculation.dto';
 
 export enum PropertyType {
   APARTMENT_IN_NEW_BUILDING = 'apartment_in_new_building',
@@ -9,31 +10,7 @@ export enum PropertyType {
   OTHER = 'other'
 }
 
-export class CreateMortgageProfileDto {
-  @IsNumber()
-  @Min(1)
-  propertyPrice: number;
-
+export class CreateMortgageProfileDto extends MortgageCalculationDto {
   @IsEnum(PropertyType)
   propertyType: PropertyType;
-
-  @IsNumber()
-  @Min(0)
-  downPaymentAmount: number;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  matCapitalAmount?: number;
-
-  @IsBoolean()
-  matCapitalIncluded: boolean;
-
-  @IsNumber()
-  @Min(1)
-  loanTermYears: number;
-
-  @IsNumber()
-  @Min(0.01)
-  interestRate: number;
 }

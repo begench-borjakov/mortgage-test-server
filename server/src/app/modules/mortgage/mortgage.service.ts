@@ -43,32 +43,11 @@ export class MortgageService {
   }
 
   private validateBusinessRules(dto: CreateMortgageProfileDto): void {
-    const {
-      propertyPrice,
-      downPaymentAmount,
-      matCapitalAmount,
-      matCapitalIncluded,
-      loanTermYears,
-      interestRate
-    } = dto;
+    const matAmount = dto.matCapitalAmount ?? 0;
 
-    const matAmount = matCapitalAmount ?? 0;
+    const usedMatCapital = dto.matCapitalIncluded ? matAmount : 0;
 
-    const usedMatCapital = matCapitalIncluded ? matAmount : 0;
-
-    if (propertyPrice <= 0) {
-      throw new BadRequestException(
-        'Стоимость недвижимости должна быть положительным числом'
-      );
-    }
-
-    if (downPaymentAmount < 0) {
-      throw new BadRequestException(
-        'Первоначальный взнос не может быть отрицательным'
-      );
-    }
-
-    if (downPaymentAmount > propertyPrice) {
+    if (dto.downPaymentAmount > dto.propertyPrice) {
       throw new BadRequestException(
         'Первоначальный взнос не может быть больше стоимости недвижимости'
       );
@@ -80,27 +59,15 @@ export class MortgageService {
       );
     }
 
-    if (matAmount > propertyPrice) {
+    if (matAmount > dto.propertyPrice) {
       throw new BadRequestException(
         'Сумма материнского капитала не может быть больше стоимости недвижимости'
       );
     }
 
-    if (downPaymentAmount + usedMatCapital > propertyPrice) {
+    if (dto.downPaymentAmount + usedMatCapital > dto.propertyPrice) {
       throw new BadRequestException(
         'Сумма первоначального взноса и материнского капитала не может превышать стоимость недвижимости'
-      );
-    }
-
-    if (loanTermYears <= 0 || loanTermYears > 50) {
-      throw new BadRequestException(
-        'Срок ипотеки должен быть в диапазоне от 1 до 50 лет'
-      );
-    }
-
-    if (interestRate <= 0 || interestRate > 100) {
-      throw new BadRequestException(
-        'Процентная ставка должна быть в диапазоне от 0.01% до 100%'
       );
     }
   }
