@@ -12,11 +12,12 @@ import {
 
 @Injectable()
 export class MortgageCalculationService {
+  private round2(value: number): number {
+    return Number(value.toFixed(2));
+  }
+
   calculateMortgage(dto: MortgageCalculationDto): MortgageCalculationRto {
-    const round2 = (value: number) => Math.round(value * 100) / 100;
-
     const matAmount = dto.matCapitalAmount ?? 0;
-
     const usedMatCapital = dto.matCapitalIncluded ? matAmount : 0;
 
     let loanAmount = dto.propertyPrice - dto.downPaymentAmount - usedMatCapital;
@@ -36,65 +37,36 @@ export class MortgageCalculationService {
       monthlyPayment = (loanAmount * monthlyRate * factor) / (factor - 1);
     }
 
-    monthlyPayment = round2(monthlyPayment);
+    monthlyPayment = this.round2(monthlyPayment);
 
-    const schedule: MortgagePaymentSchedule = {};
-    let remainingDebt = loanAmount;
-    let totalPaid = 0;
-    let totalInterest = 0;
+    const result = this.buildPaymentSchedule(
+      loanAmount,
+      monthlyRate,
+      monthsCount,
+      monthlyPayment
+    );
 
-    const startYear = new Date().getFullYear();
+    const schedule = result.schedule;
+    const totalPaid = result.totalPaid;
+    const totalInterest = result.totalInterest;
 
-    for (let i = 0; i < monthsCount; i++) {
-      if (remainingDebt <= 0) break;
-
-      const year = startYear + Math.floor(i / 12);
-      const monthNumber = (i % 12) + 1;
-      const yearKey = String(year);
-      const monthKey = String(monthNumber);
-
-      if (!schedule[yearKey]) {
-        schedule[yearKey] = {};
-      }
-
-      const interestRaw = monthlyRate === 0 ? 0 : remainingDebt * monthlyRate;
-      let principalRaw = monthlyPayment - interestRaw;
-
-      if (principalRaw > remainingDebt) {
-        principalRaw = remainingDebt;
-      }
-
-      const interestPayment = round2(interestRaw);
-      const principalPayment = round2(principalRaw);
-      const totalPaymentForMonth = round2(principalPayment + interestPayment);
-
-      remainingDebt = round2(remainingDebt - principalPayment);
-      totalPaid += totalPaymentForMonth;
-      totalInterest += interestPayment;
-
-      schedule[yearKey][monthKey] = {
-        totalPayment: totalPaymentForMonth,
-        repaymentOfMortgageBody: principalPayment,
-        repaymentOfMortgageInterest: interestPayment,
-        mortgageBalance: remainingDebt
-      };
-    }
-
-    const totalPayment = round2(totalPaid);
-    const totalOverpaymentAmount = round2(totalInterest);
+    const totalPayment = totalPaid;
+    const totalOverpaymentAmount = totalInterest;
 
     const propertyDeductionBase = Math.min(dto.propertyPrice, 2_000_000);
-    const propertyDeduction = round2(propertyDeductionBase * 0.13);
+    const propertyDeduction = this.round2(propertyDeductionBase * 0.13);
 
     const interestDeductionBase = Math.min(totalOverpaymentAmount, 3_000_000);
-    const interestDeduction = round2(interestDeductionBase * 0.13);
+    const interestDeduction = this.round2(interestDeductionBase * 0.13);
 
-    const possibleTaxDeduction = round2(propertyDeduction + interestDeduction);
+    const possibleTaxDeduction = this.round2(
+      propertyDeduction + interestDeduction
+    );
 
-    const savingsDueMotherCapital = round2(usedMatCapital);
+    const savingsDueMotherCapital = this.round2(usedMatCapital);
 
     const recommendedIncome =
-      monthlyPayment > 0 ? round2(monthlyPayment / 0.35) : 0;
+      monthlyPayment > 0 ? this.round2(monthlyPayment / 0.35) : 0;
 
     return {
       monthlyPayment,
@@ -104,6 +76,77 @@ export class MortgageCalculationService {
       savingsDueMotherCapital,
       recommendedIncome,
       mortgagePaymentSchedule: schedule
+    };
+  }
+
+  private buildPaymentSchedule(
+    loanAmount: number,
+    monthlyRate: number,
+    monthsCount: number,
+    monthlyPayment: number,
+    startDate: Date = new Date()
+  ): {
+    schedule: MortgagePaymentSchedule;
+    totalPaid: number;
+    totalInterest: number;
+  } {
+    const schedule: MortgagePaymentSchedule = {};
+
+    if (loanAmount <= 0 || monthlyPayment <= 0 || monthsCount <= 0) {
+      return { schedule, totalPaid: 0, totalInterest: 0 };
+    }
+
+    let remainingDebt = loanAmount;
+    let totalPaid = 0;
+    let totalInterest = 0;
+
+    let year = startDate.getFullYear();
+    let month = startDate.getMonth() + 1;
+
+    for (let i = 0; i < monthsCount && remainingDebt > 0; i++) {
+      const yearKey = String(year);
+      const monthKey = String(month);
+
+      if (!schedule[yearKey]) {
+        schedule[yearKey] = {};
+      }
+
+      const interestPayment =
+        monthlyRate === 0 ? 0 : this.round2(remainingDebt * monthlyRate);
+
+      let principalPayment =
+        monthlyPayment > 0 ? this.round2(monthlyPayment - interestPayment) : 0;
+
+      if (principalPayment > remainingDebt) {
+        principalPayment = remainingDebt;
+      }
+
+      const totalPaymentForMonth = this.round2(
+        principalPayment + interestPayment
+      );
+
+      remainingDebt = this.round2(remainingDebt - principalPayment);
+      totalPaid += totalPaymentForMonth;
+      totalInterest += interestPayment;
+
+      schedule[yearKey][monthKey] = {
+        totalPayment: totalPaymentForMonth,
+        repaymentOfMortgageBody: principalPayment,
+        repaymentOfMortgageInterest: interestPayment,
+        mortgageBalance: remainingDebt
+      };
+
+      month++;
+      if (month > 12) {
+        month = 1;
+        year++;
+      }
+    }
+
+    return {
+      schedule,
+      totalPaid: this.round2(totalPaid),
+      totalInterest: this.round2(totalInterest)
     };
   }
 
