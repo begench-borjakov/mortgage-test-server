@@ -1,22 +1,90 @@
-import { Injectable } from '@nestjs/common';
-import { Database } from '../../../../database/schema';
-import { MortgageCalculationDto } from '../dto/mortgage-calculation.dto';
+import { Inject, Injectable, BadRequestException } from '@nestjs/common';
+import { Database } from '../../../database/schema';
+import { MortgageCalculationDto } from './dto/mortgage-calculation.dto';
+import { CreateMortgageProfileDto } from '../mortgage-profiles/dto/create-mortgage.dto';
 import {
   MortgageCalculationRto,
   MortgagePaymentSchedule
-} from '../rto/mortgage-calculation.rto';
-import {
-  mortgageCalculations,
-  NewMortgageCalculation
-} from '../calculations/schemas/mortgage-calculation';
+} from './rto/mortgage-calculation.rto';
+import { NewMortgageCalculation } from './schemas/mortgage-calculation';
+import { MortgageProfileService } from '../mortgage-profiles/mortgage-profile.service';
+import { MortgageCalculationRepository } from './mortgage-calculation.repository';
 
 @Injectable()
 export class MortgageCalculationService {
+  constructor(
+    @Inject('DATABASE')
+    private readonly db: Database,
+    private readonly profileService: MortgageProfileService,
+    private readonly calcRepo: MortgageCalculationRepository
+  ) {}
+
+  async createMortgageCalculation(
+    userId: string,
+    dto: CreateMortgageProfileDto
+  ): Promise<MortgageCalculationRto> {
+    this.validateBusinessRules(dto);
+
+    const result = await this.db.transaction(async tx => {
+      const profileModel = this.profileService.buildProfileModel(dto, userId);
+      const profileId = await this.profileService.saveProfileTx(
+        tx,
+        profileModel
+      );
+
+      const calcResult = this.calculateMortgage(dto);
+
+      const calculationModel = this.buildCalculationModel(
+        userId,
+        profileId,
+        calcResult
+      );
+
+      await this.calcRepo.saveCalculationTx(tx, calculationModel);
+
+      return calcResult;
+    });
+
+    return result;
+  }
+
+  private validateBusinessRules(dto: CreateMortgageProfileDto): void {
+    const matAmount = dto.matCapitalAmount ?? 0;
+
+    const usedMatCapital = dto.matCapitalIncluded ? matAmount : 0;
+
+    if (dto.downPaymentAmount > dto.propertyPrice) {
+      throw new BadRequestException(
+        'Первоначальный взнос не может быть больше стоимости недвижимости'
+      );
+    }
+
+    if (matAmount < 0) {
+      throw new BadRequestException(
+        'Сумма материнского капитала не может быть отрицательной'
+      );
+    }
+
+    if (matAmount > dto.propertyPrice) {
+      throw new BadRequestException(
+        'Сумма материнского капитала не может быть больше стоимости недвижимости'
+      );
+    }
+
+    if (dto.downPaymentAmount + usedMatCapital > dto.propertyPrice) {
+      throw new BadRequestException(
+        'Сумма первоначального взноса и материнского капитала не может превышать стоимость недвижимости'
+      );
+    }
+  }
+
   private round2(value: number): number {
     return Number(value.toFixed(2));
   }
 
-  calculateMortgage(dto: MortgageCalculationDto): MortgageCalculationRto {
+  private calculateMortgage(
+    dto: MortgageCalculationDto
+  ): MortgageCalculationRto {
     const matAmount = dto.matCapitalAmount ?? 0;
     const usedMatCapital = dto.matCapitalIncluded ? matAmount : 0;
 
@@ -97,10 +165,13 @@ export class MortgageCalculationService {
     }
 
     let remainingDebt = loanAmount;
+
     let totalPaid = 0;
+
     let totalInterest = 0;
 
     let year = startDate.getFullYear();
+
     let month = startDate.getMonth() + 1;
 
     for (let i = 0; i < monthsCount && remainingDebt > 0; i++) {
@@ -126,7 +197,9 @@ export class MortgageCalculationService {
       );
 
       remainingDebt = this.round2(remainingDebt - principalPayment);
+
       totalPaid += totalPaymentForMonth;
+
       totalInterest += interestPayment;
 
       schedule[yearKey][monthKey] = {
@@ -166,12 +239,5 @@ export class MortgageCalculationService {
       recommendedIncome: result.recommendedIncome,
       paymentSchedule: JSON.stringify(result.mortgagePaymentSchedule)
     };
-  }
-
-  async saveCalculationTx(
-    tx: Database,
-    calculation: NewMortgageCalculation
-  ): Promise<void> {
-    await tx.insert(mortgageCalculations).values(calculation);
   }
 }

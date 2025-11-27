@@ -10,7 +10,7 @@ import { AccountModule } from './modules/account/account.module';
 import { AccountTokenModule } from './modules/account-token/account-token.module';
 import { RefreshTokenModule } from './modules/refresh-token/refresh-token.module';
 import { DatabaseModule } from '../database/database.module';
-import { MortgageModule } from './modules/mortgage/mortgage.module';
+import { MortgageModule } from './modules/mortgage-profiles/mortgage-profiles.module';
 
 @Module({
   imports: [

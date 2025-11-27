@@ -1,5 +1,5 @@
 import { IsEnum } from 'class-validator';
-import { MortgageCalculationDto } from './mortgage-calculation.dto';
+import { MortgageCalculationDto } from '../../mortgage-calculations/dto/mortgage-calculation.dto';
 
 export enum PropertyType {
   APARTMENT_IN_NEW_BUILDING = 'apartment_in_new_building',
