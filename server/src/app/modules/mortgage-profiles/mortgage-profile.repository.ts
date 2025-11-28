@@ -7,7 +7,7 @@ import {
 
 @Injectable()
 export class MortgageProfileRepository {
-  async saveProfileTx(
+  async saveProfileInTransaction(
     tx: Database,
     profile: NewMortgageProfile
   ): Promise<number> {

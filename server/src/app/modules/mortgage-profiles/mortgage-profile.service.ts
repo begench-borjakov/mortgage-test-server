@@ -24,10 +24,10 @@ export class MortgageProfileService {
     };
   }
 
-  async saveProfileTx(
+  async saveProfileInTransaction(
     tx: Database,
     profile: NewMortgageProfile
   ): Promise<number> {
-    return this.profileRepo.saveProfileTx(tx, profile);
+    return this.profileRepo.saveProfileInTransaction(tx, profile);
   }
 }

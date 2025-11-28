@@ -25,10 +25,10 @@ export class MortgageCalculationService {
   ): Promise<MortgageCalculationRto> {
     this.validateBusinessRules(dto);
 
-    const result = await this.db.transaction(async tx => {
+    const result = await this.db.transaction(async transactionDb => {
       const profileModel = this.profileService.buildProfileModel(dto, userId);
-      const profileId = await this.profileService.saveProfileTx(
-        tx,
+      const profileId = await this.profileService.saveProfileInTransaction(
+        transactionDb,
         profileModel
       );
 
@@ -40,7 +40,7 @@ export class MortgageCalculationService {
         calcResult
       );
 
-      await this.calcRepo.saveCalculationTx(tx, calculationModel);
+      await this.calcRepo.saveCalculationTx(transactionDb, calculationModel);
 
       return calcResult;
     });
@@ -50,8 +50,6 @@ export class MortgageCalculationService {
 
   private validateBusinessRules(dto: CreateMortgageProfileDto): void {
     const matAmount = dto.matCapitalAmount ?? 0;
-
-    const usedMatCapital = dto.matCapitalIncluded ? matAmount : 0;
 
     if (dto.downPaymentAmount > dto.propertyPrice) {
       throw new BadRequestException(
@@ -70,71 +68,45 @@ export class MortgageCalculationService {
         'Сумма материнского капитала не может быть больше стоимости недвижимости'
       );
     }
-
-    if (dto.downPaymentAmount + usedMatCapital > dto.propertyPrice) {
-      throw new BadRequestException(
-        'Сумма первоначального взноса и материнского капитала не может превышать стоимость недвижимости'
-      );
-    }
-  }
-
-  private round2(value: number): number {
-    return Number(value.toFixed(2));
   }
 
   private calculateMortgage(
     dto: MortgageCalculationDto
   ): MortgageCalculationRto {
     const matAmount = dto.matCapitalAmount ?? 0;
-    const usedMatCapital = dto.matCapitalIncluded ? matAmount : 0;
 
-    let loanAmount = dto.propertyPrice - dto.downPaymentAmount - usedMatCapital;
+    let loanAmount = dto.propertyPrice - dto.downPaymentAmount;
     if (loanAmount < 0) loanAmount = 0;
 
     const monthsCount = dto.loanTermYears * 12;
     const monthlyRate = dto.interestRate / 12 / 100;
 
-    let monthlyPayment = 0;
+    const monthlyPayment = this.calculateMonthlyPaymentValue(
+      loanAmount,
+      monthsCount,
+      monthlyRate
+    );
 
-    if (loanAmount === 0 || monthsCount <= 0) {
-      monthlyPayment = 0;
-    } else if (monthlyRate === 0) {
-      monthlyPayment = loanAmount / monthsCount;
-    } else {
-      const factor = Math.pow(1 + monthlyRate, monthsCount);
-      monthlyPayment = (loanAmount * monthlyRate * factor) / (factor - 1);
-    }
-
-    monthlyPayment = this.round2(monthlyPayment);
-
-    const result = this.buildPaymentSchedule(
+    const schedule = this.buildPaymentSchedule(
       loanAmount,
       monthlyRate,
       monthsCount,
       monthlyPayment
     );
 
-    const schedule = result.schedule;
-    const totalPaid = result.totalPaid;
-    const totalInterest = result.totalInterest;
+    const { totalPayment, totalOverpaymentAmount } =
+      this.calculateTotalsFromSchedule(schedule, loanAmount);
 
-    const totalPayment = totalPaid;
-    const totalOverpaymentAmount = totalInterest;
-
-    const propertyDeductionBase = Math.min(dto.propertyPrice, 2_000_000);
-    const propertyDeduction = this.round2(propertyDeductionBase * 0.13);
-
-    const interestDeductionBase = Math.min(totalOverpaymentAmount, 3_000_000);
-    const interestDeduction = this.round2(interestDeductionBase * 0.13);
-
-    const possibleTaxDeduction = this.round2(
-      propertyDeduction + interestDeduction
+    const possibleTaxDeduction = this.calculatePossibleTaxDeduction(
+      dto.propertyPrice,
+      totalOverpaymentAmount
     );
 
-    const savingsDueMotherCapital = this.round2(usedMatCapital);
+    const savingsDueMotherCapital = Number(
+      (dto.matCapitalIncluded ? matAmount : 0).toFixed(2)
+    );
 
-    const recommendedIncome =
-      monthlyPayment > 0 ? this.round2(monthlyPayment / 0.35) : 0;
+    const recommendedIncome = this.calculateRecommendedIncome(monthlyPayment);
 
     return {
       monthlyPayment,
@@ -147,31 +119,47 @@ export class MortgageCalculationService {
     };
   }
 
+  private calculateMonthlyPaymentValue(
+    loanAmount: number,
+    monthsCount: number,
+    monthlyRate: number
+  ): number {
+    if (loanAmount <= 0 || monthsCount <= 0) {
+      return 0;
+    }
+
+    if (monthlyRate <= 0) {
+      const payment = loanAmount / monthsCount;
+      return Number(payment.toFixed(2));
+    }
+
+    const factor = Math.pow(1 + monthlyRate, monthsCount);
+
+    if (!Number.isFinite(factor) || factor <= 1) {
+      const fallback = loanAmount / monthsCount;
+      return Number(fallback.toFixed(2));
+    }
+
+    const annuity = (loanAmount * monthlyRate * factor) / (factor - 1);
+    return Number(annuity.toFixed(2));
+  }
+
   private buildPaymentSchedule(
     loanAmount: number,
     monthlyRate: number,
     monthsCount: number,
     monthlyPayment: number,
     startDate: Date = new Date()
-  ): {
-    schedule: MortgagePaymentSchedule;
-    totalPaid: number;
-    totalInterest: number;
-  } {
+  ): MortgagePaymentSchedule {
     const schedule: MortgagePaymentSchedule = {};
 
-    if (loanAmount <= 0 || monthlyPayment <= 0 || monthsCount <= 0) {
-      return { schedule, totalPaid: 0, totalInterest: 0 };
+    if (monthlyPayment <= 0) {
+      return schedule;
     }
 
     let remainingDebt = loanAmount;
 
-    let totalPaid = 0;
-
-    let totalInterest = 0;
-
     let year = startDate.getFullYear();
-
     let month = startDate.getMonth() + 1;
 
     for (let i = 0; i < monthsCount && remainingDebt > 0; i++) {
@@ -182,25 +170,28 @@ export class MortgageCalculationService {
         schedule[yearKey] = {};
       }
 
-      const interestPayment =
-        monthlyRate === 0 ? 0 : this.round2(remainingDebt * monthlyRate);
+      const interestPaymentRaw = remainingDebt * monthlyRate;
+      const interestPayment = Number(interestPaymentRaw.toFixed(2));
 
-      let principalPayment =
-        monthlyPayment > 0 ? this.round2(monthlyPayment - interestPayment) : 0;
-
-      if (principalPayment > remainingDebt) {
-        principalPayment = remainingDebt;
+      if (monthlyRate > 0 && monthlyPayment <= interestPayment) {
+        throw new Error(
+          'Ежемесячный платёж меньше или равен сумме процентов, кредит не погашается'
+        );
       }
 
-      const totalPaymentForMonth = this.round2(
-        principalPayment + interestPayment
+      let principalPaymentRaw = monthlyPayment - interestPayment;
+
+      if (principalPaymentRaw > remainingDebt) {
+        principalPaymentRaw = remainingDebt;
+      }
+
+      const principalPayment = Number(principalPaymentRaw.toFixed(2));
+
+      const totalPaymentForMonth = Number(
+        (principalPayment + interestPayment).toFixed(2)
       );
 
-      remainingDebt = this.round2(remainingDebt - principalPayment);
-
-      totalPaid += totalPaymentForMonth;
-
-      totalInterest += interestPayment;
+      remainingDebt = Number((remainingDebt - principalPayment).toFixed(2));
 
       schedule[yearKey][monthKey] = {
         totalPayment: totalPaymentForMonth,
@@ -216,11 +207,47 @@ export class MortgageCalculationService {
       }
     }
 
-    return {
-      schedule,
-      totalPaid: this.round2(totalPaid),
-      totalInterest: this.round2(totalInterest)
-    };
+    return schedule;
+  }
+
+  private calculateTotalsFromSchedule(
+    schedule: MortgagePaymentSchedule,
+    initialLoanAmount: number
+  ): { totalPayment: number; totalOverpaymentAmount: number } {
+    let totalPayment = 0;
+
+    for (const year of Object.values(schedule)) {
+      for (const month of Object.values(year)) {
+        totalPayment += month.totalPayment;
+      }
+    }
+
+    totalPayment = Number(totalPayment.toFixed(2));
+
+    const totalOverpaymentAmount = Number(
+      (totalPayment - initialLoanAmount).toFixed(2)
+    );
+
+    return { totalPayment, totalOverpaymentAmount };
+  }
+
+  private calculatePossibleTaxDeduction(
+    propertyPrice: number,
+    totalOverpaymentAmount: number
+  ): number {
+    const propertyDeductionBase = Math.min(propertyPrice, 2_000_000);
+    const propertyDeduction = Number((propertyDeductionBase * 0.13).toFixed(2));
+
+    const interestDeductionBase = Math.min(totalOverpaymentAmount, 3_000_000);
+    const interestDeduction = Number((interestDeductionBase * 0.13).toFixed(2));
+
+    return Number((propertyDeduction + interestDeduction).toFixed(2));
+  }
+
+  private calculateRecommendedIncome(monthlyPayment: number): number {
+    if (monthlyPayment <= 0) return 0;
+    const income = monthlyPayment / 0.35;
+    return Number(income.toFixed(2));
   }
 
   buildCalculationModel(

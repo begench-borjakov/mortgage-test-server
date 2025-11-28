@@ -1,7 +1,7 @@
 import {
   mysqlTable,
   int,
-  double,
+  decimal,
   varchar,
   text,
   timestamp
@@ -14,12 +14,41 @@ export const mortgageCalculations = mysqlTable('MortgageCalculations', {
 
   mortgageProfileId: int('mortgageProfileId').notNull(),
 
-  monthlyPayment: double('monthlyPayment').notNull(),
-  totalPayment: double('totalPayment').notNull(),
-  totalOverpaymentAmount: double('totalOverpaymentAmount').notNull(),
-  possibleTaxDeduction: double('possibleTaxDeduction').notNull(),
-  savingsDueMotherCapital: double('savingsDueMotherCapital').notNull(),
-  recommendedIncome: double('recommendedIncome').notNull(),
+  monthlyPayment: decimal('monthlyPayment', {
+    precision: 15,
+    scale: 2,
+    mode: 'number'
+  }).notNull(),
+
+  totalPayment: decimal('totalPayment', {
+    precision: 15,
+    scale: 2,
+    mode: 'number'
+  }).notNull(),
+
+  totalOverpaymentAmount: decimal('totalOverpaymentAmount', {
+    precision: 15,
+    scale: 2,
+    mode: 'number'
+  }).notNull(),
+
+  possibleTaxDeduction: decimal('possibleTaxDeduction', {
+    precision: 15,
+    scale: 2,
+    mode: 'number'
+  }).notNull(),
+
+  savingsDueMotherCapital: decimal('savingsDueMotherCapital', {
+    precision: 15,
+    scale: 2,
+    mode: 'number'
+  }).notNull(),
+
+  recommendedIncome: decimal('recommendedIncome', {
+    precision: 15,
+    scale: 2,
+    mode: 'number'
+  }).notNull(),
 
   paymentSchedule: text('paymentSchedule').notNull(),
 
