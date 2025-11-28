@@ -1,7 +1,7 @@
 import {
   mysqlTable,
   int,
-  double,
+  decimal,
   varchar,
   boolean,
   timestamp
@@ -12,15 +12,31 @@ export const mortgageProfiles = mysqlTable('MortgageProfiles', {
   id: int('id').autoincrement().primaryKey(),
   userId: varchar('userId', { length: 255 }).notNull(),
 
-  propertyPrice: double('propertyPrice').notNull(),
+  propertyPrice: decimal('propertyPrice', {
+    precision: 15,
+    scale: 2,
+    mode: 'number'
+  }).notNull(),
   propertyType: varchar('propertyType', { length: 255 }).notNull(),
-  downPaymentAmount: double('downPaymentAmount').notNull(),
+  downPaymentAmount: decimal('downPaymentAmount', {
+    precision: 15,
+    scale: 2,
+    mode: 'number'
+  }).notNull(),
 
-  matCapitalAmount: double('matCapitalAmount'),
+  matCapitalAmount: decimal('matCapitalAmount', {
+    precision: 15,
+    scale: 2,
+    mode: 'number'
+  }),
   matCapitalIncluded: boolean('matCapitalIncluded').notNull().default(false),
 
   loanTermYears: int('loanTermYears').notNull(),
-  interestRate: double('interestRate').notNull(),
+  interestRate: decimal('interestRate', {
+    precision: 5,
+    scale: 2,
+    mode: 'number'
+  }).notNull(),
 
   createdAt: timestamp('createdAt').defaultNow().notNull(),
   updatedAt: timestamp('updatedAt').defaultNow().onUpdateNow().notNull()

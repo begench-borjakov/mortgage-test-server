@@ -24,6 +24,6 @@ export class MortgageCalculationDto {
 
   @IsNumber()
   @Min(0.01)
-  @Max(100)
+  @Max(40)
   interestRate: number;
 }

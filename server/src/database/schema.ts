@@ -2,8 +2,8 @@ import { accounts } from '../app/modules/account/schemas/accounts';
 import { accountTokens } from '../app/modules/account-token/schemas/account-tokens';
 import { users } from '../app/modules/user/schemas/users';
 import { refreshTokens } from '../app/modules/refresh-token/schemas/refresh-tokens';
-import { mortgageProfiles } from '../app/modules/mortgage/profiles/schemas/mortgage-profile';
-import { mortgageCalculations } from '../app/modules/mortgage/calculations/schemas/mortgage-calculation';
+import { mortgageProfiles } from '../app/modules/mortgage-profiles/schemas/mortgage-profile';
+import { mortgageCalculations } from '../app/modules/mortgage-calculations/schemas/mortgage-calculation';
 import { MySql2Database } from 'drizzle-orm/mysql2';
 
 export const databaseSchema = {
